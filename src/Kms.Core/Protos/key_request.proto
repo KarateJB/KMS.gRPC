@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option csharp_namespace = "Kms.Core";
+
+// The request message
+message KeyRequest {
+  
+  // Client name
+  string Client = 1;
+}

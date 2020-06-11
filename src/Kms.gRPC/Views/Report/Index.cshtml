@@ -1,0 +1,126 @@
+﻿@using Newtonsoft.Json;
+@using Kms.Core.Utils.Extensions;
+@model IEnumerable<Kms.Core.KeyAuditReport>
+
+<h2>Client working keys</h2>
+<br />
+<br />
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Client)
+            </th>
+            <th>
+                Key Owner
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.KeyType)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.Purpose)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.Expando)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.CreateOn)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.ExpireOn)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.RevokeOn)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.Key1)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().Key.Key2)
+            </th>
+            <th>
+                Key Id (Client)
+            </th>
+            <th>
+                Key Id (KMS)
+            </th>
+            <th>
+                Is Matched?
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.First().ReportOn)
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Client)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Key.Owner.Name)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Key.KeyType)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Key.Purpose)
+                </td>
+                <td>
+                    @{
+                        var expandoStr = JsonConvert.SerializeObject(item.Key.Expando, Formatting.Indented);
+                    }
+                    <pre>@Html.Raw(expandoStr)</pre>
+                </td>
+                <td>
+                    @{
+                        var createOn = item.Key.CreateOn.ToDateTimeOffset().ToLocalTime();
+                    }
+                    @Html.Raw(createOn)
+                </td>
+                <td>
+                    @{
+                        var expireOn = item.Key.ExpireOn.ToDateTimeOffset().ToLocalTime();
+                    }
+                    @Html.Raw(expireOn)
+                </td>
+                <td>
+                    @{
+                        DateTimeOffset? revokeOn = item.Key.RevokeOn?.ToDateTimeOffset().ToLocalTime();
+                    }
+                    @Html.Raw(revokeOn)
+                </td>
+                <td>
+                    @{
+                        var maskedKey1 = string.IsNullOrEmpty(item.Key.Key1) ? string.Empty : item.Key.Key1.Mask();
+                    }
+                    @Html.Raw(maskedKey1)
+                </td>
+                <td>
+                    @{
+                        var maskedKey2 = string.IsNullOrEmpty(item.Key.Key2) ? string.Empty : item.Key.Key2.Mask();
+                    }
+                    @Html.Raw(maskedKey2)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.Key.Id)
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.KmsKeyId)
+                </td>
+                <td>
+                    @Html.CheckBoxFor(modelItem => item.IsMatched)
+                </td>
+                <td>
+                    @{
+                        var reportOn = item.ReportOn.ToDateTimeOffset().ToLocalTime();
+                    }
+                    @Html.Raw(reportOn)
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

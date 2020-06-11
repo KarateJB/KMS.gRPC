@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Protos\cipher_key.proto" />
+    <None Remove="Protos\encrypted_data.proto" />
+    <None Remove="Protos\key_audit_report.proto" />
+    <None Remove="Protos\key_request.proto" />
+    <None Remove="Protos\key_vault.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.12.2" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.29.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.29.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos\cipher_key.proto" />
+    <Protobuf Include="Protos\key_audit_report.proto" />
+    <Protobuf Include="Protos\encrypted_data.proto" />
+    <Protobuf Include="Protos\key_request.proto" />
+    <Protobuf Include="Protos\key_vault.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\DTO\" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option csharp_namespace = "Kms.Core";
+
+message EncryptedData {
+
+  // Client name
+  string Client = 1;
+
+  // Cipher
+  string Cipher = 2;
+}

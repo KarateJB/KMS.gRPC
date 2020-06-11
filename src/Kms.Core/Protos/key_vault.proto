@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option csharp_namespace = "Kms.Core";
+
+import "Protos/cipher_key.proto";
+import "Protos/key_request.proto";
+import "Protos/encrypted_data.proto";
+import "Protos/key_audit_report.proto";
+
+
+package key_vault;
+
+// The greeting service definition.
+service KeyVaulter {
+  // Unary RPC: Create symmetric key
+  rpc CreateSymmentricKey (KeyRequest) returns (CipherKey);
+
+  // Unary RPC: Create asymmetric keys
+  rpc CreateAsymmetricKeys (KeyRequest) returns (EncryptedData);
+
+  // Server streaming RPC: Create shared secrets
+  rpc CreateSharedSectets (KeyRequest) returns (stream EncryptedData);
+
+  // Client streaming RPC: Reporting working keys
+  rpc AuditWorkingKeys (stream EncryptedData) returns (KeyAuditReports);
+
+  // Bidirectional streaming RPC: Reporting working keys
+  rpc AuditWorkingKeysBid (stream EncryptedData) returns (stream KeyAuditReport);
+}

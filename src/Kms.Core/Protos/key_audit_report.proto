@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option csharp_namespace = "Kms.Core";
+
+import "google/protobuf/timestamp.proto";
+import "Protos/cipher_key.proto";
+
+message KeyAuditReport {
+
+    // Client
+    string Client = 1;
+
+    /// Client's working key
+    CipherKey Key = 2;
+
+    // Is match KMS's working keys on the same client and key type
+    bool IsMatched = 3;
+
+    // KMS's working key id on the same client and key type
+    string KmsKeyId = 4;
+
+    // Latest Report on
+    google.protobuf.Timestamp ReportOn = 5;
+}
+
+message KeyAuditReports {
+
+    // KeyAuditReport
+    repeated KeyAuditReport Reports = 1;
+}

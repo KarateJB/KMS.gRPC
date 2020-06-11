@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+option csharp_namespace = "Kms.Core";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+// CipherKey
+message CipherKey {
+  
+  // CipherKeyOwner
+  message CipherKeyOwner {
+    string Name = 1;
+    string Host = 2;
+  }
+
+  // CipherKeyUser
+  message CipherKeyUser {
+    string Name = 1;
+    string Host = 2;
+  }
+
+  // Key type
+  enum KeyTypeEnum {
+    SharedSecret = 0;
+    TripleDES = 1;
+    RSA = 2;
+  }
+
+  // GUID
+  string Id = 1;
+
+  // Key type
+  KeyTypeEnum KeyType = 2;
+
+  // Purpose
+  string Purpose = 3;
+        
+  // Create on
+  google.protobuf.Timestamp CreateOn = 4;
+        
+  // Active on
+  google.protobuf.Timestamp ActiveOn = 5;
+
+  // Expired on
+  google.protobuf.Timestamp ExpireOn = 6;
+
+  // Revoke on
+  google.protobuf.Timestamp RevokeOn = 7;
+
+  // Is revoked
+  bool IsDeprecated = 8;
+
+  // Key | Public key in base64
+  string Key1 = 9;
+
+  // Key | Private key in base64
+  string Key2 = 10;
+
+  // Expando
+  google.protobuf.Any Expando = 11;
+        
+  // Key Owner
+  CipherKeyOwner Owner = 12;
+
+  // Users to use the public key         
+  repeated CipherKeyUser Users = 13;
+}
