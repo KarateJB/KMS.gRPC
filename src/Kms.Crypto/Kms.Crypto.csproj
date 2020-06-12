@@ -9,7 +9,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AspNetCore.gRPC.Core\Kms.Core.csproj" />
     <ProjectReference Include="..\Kms.Core\Kms.Core.csproj" />
   </ItemGroup>
 

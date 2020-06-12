@@ -5,7 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AspNetCore.gRPC.Crypto\Kms.Crypto.csproj" />
     <ProjectReference Include="..\Kms.Core\Kms.Core.csproj" />
     <ProjectReference Include="..\Kms.Crypto\Kms.Crypto.csproj" />
   </ItemGroup>
