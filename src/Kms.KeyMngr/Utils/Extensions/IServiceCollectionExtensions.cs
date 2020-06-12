@@ -14,13 +14,13 @@ namespace Kms.KeyMngr.Utils.Extensions
     /// <summary>
     /// ServiceCollectionExtensions
     /// </summary>
-    public static class ServiceCollectionExtensions
+    public static class IServiceCollectionExtensions
     {
         /// <summary>
         /// Add KmsClient services
         /// </summary>
         /// <param name="services">IServiceCollection</param>
-        public static IServiceCollection AddKmsClient(this IServiceCollection services)
+        public static IServiceCollection AddKeyManagers(this IServiceCollection services)
         {
             #region MemoryCache
             services.AddMemoryCache();

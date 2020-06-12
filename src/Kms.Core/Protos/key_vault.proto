@@ -21,9 +21,12 @@ service KeyVaulter {
   // Server streaming RPC: Create shared secrets
   rpc CreateSharedSectets (KeyRequest) returns (stream EncryptedData);
 
-  // Client streaming RPC: Reporting working keys
+  // Client streaming RPC: Audit working keys
   rpc AuditWorkingKeys (stream EncryptedData) returns (KeyAuditReports);
 
-  // Bidirectional streaming RPC: Reporting working keys
+  // Bidirectional streaming RPC: Audit working keys
   rpc AuditWorkingKeysBid (stream EncryptedData) returns (stream KeyAuditReport);
+
+  // Bidirectional streaming RPC: Renew keys
+  rpc RenewKeysBid (stream EncryptedData) returns (stream EncryptedData);
 }

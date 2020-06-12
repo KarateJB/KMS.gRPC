@@ -12,6 +12,7 @@ using Kms.KeyMngr.Utils.Extensions;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Bcpg.Sig;
 using static Kms.Core.CipherKey.Types;
 
 namespace Kms.Client.Dispatcher.Services
@@ -95,17 +96,15 @@ namespace Kms.Client.Dispatcher.Services
 
                 try
                 {
-                    await foreach (var encryptReply in stream.ResponseStream.ReadAllAsync())
+                    await foreach (var encryptedReply in stream.ResponseStream.ReadAllAsync())
                     {
-                        using (var es = new TripleDesService())
-                        {
-                            var encryptedData = encryptReply.Cipher;
-                            var decryptedData = es.Decrypt(decryptKey.Key1, encryptedData);
-                            var sharedSecret = JsonConvert.DeserializeObject<CipherKey>(decryptedData);
-                            await sharedSecretManager.UpdateKeysAsync(CipherKey.Types.KeyTypeEnum.SharedSecret, sharedSecret);
+                        using var es = new TripleDesService();
+                        var encryptedStr = encryptedReply.Cipher;
+                        var decryptedStr = es.Decrypt(decryptKey.Key1, encryptedStr);
+                        var sharedSecret = JsonConvert.DeserializeObject<CipherKey>(decryptedStr);
+                        await sharedSecretManager.UpdateKeysAsync(CipherKey.Types.KeyTypeEnum.SharedSecret, sharedSecret);
 
-                            this.logger.CustomLogDebug($"{successMsg}");
-                        }
+                        this.logger.CustomLogDebug($"{successMsg}");
                     }
                 }
                 catch (RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Cancelled)
@@ -187,9 +186,9 @@ namespace Kms.Client.Dispatcher.Services
         /// </summary>
         public async Task AuditWorkingKeysAsync()
         {
-            const string successMsg = "Successfully auditing working keys to KMS.";
+            const string successMsg = "Successfully auditing working keys.";
 
-            this.logger.CustomLogDebug("Start audit working keys...");
+            this.logger.CustomLogDebug("Start auditing working keys...");
 
             using var stream = keyVaulterClient.AuditWorkingKeys();
 
@@ -210,9 +209,9 @@ namespace Kms.Client.Dispatcher.Services
             }
 
             // Wait for request steaming done
-            this.logger.CustomLogDebug("Completing request stream...");
+            this.logger.CustomLogDebug("Completing audit-keys request stream...");
             await stream.RequestStream.CompleteAsync();
-            this.logger.CustomLogDebug("Request stream completed.");
+            this.logger.CustomLogDebug("Audit-keys request stream completed.");
 
             // Get the response
             var auditReports = await stream.ResponseAsync;
@@ -240,15 +239,14 @@ namespace Kms.Client.Dispatcher.Services
         /// </summary>
         public async Task AuditWorkingKeysBidAsync()
         {
-            const string successMsg = "Successfully reporting working keys to KMS.";
+            const string successMsg = "Successfully auditing working keys.";
 
-            this.logger.CustomLogDebug("Start audit working keys...");
+            this.logger.CustomLogDebug("Start auditing working keys...");
 
             using var stream = keyVaulterClient.AuditWorkingKeysBid();
 
             var responseProcessing = Task.Run(async () =>
             {
-
                 try
                 {
                     await foreach (var auditResult in stream.ResponseStream.ReadAllAsync())
@@ -290,14 +288,108 @@ namespace Kms.Client.Dispatcher.Services
             }
 
             // Wait for request steaming done
-            this.logger.CustomLogDebug("Completing request stream...");
+            this.logger.CustomLogDebug("Completing audit-keys request stream...");
             await stream.RequestStream.CompleteAsync();
-            this.logger.CustomLogDebug("Request stream completed.");
+            this.logger.CustomLogDebug("Audit-keys request stream completed.");
 
             // Wait for response steaming done
-            this.logger.CustomLogDebug("Completing response stream...");
+            this.logger.CustomLogDebug("Completing audit-keys response stream...");
             await responseProcessing;
-            this.logger.CustomLogDebug("Response stream completed.");
+            this.logger.CustomLogDebug("Audit-keys response stream completed.");
+
+            this.logger.CustomLogDebug($"{successMsg}");
+        }
+        #endregion
+
+        #region Renew Keys
+
+        public async Task RenewKeysBidAsync()
+        {
+            const string successMsg = "Successfully renewing keys to KMS.";
+
+            this.logger.CustomLogDebug("Start renew keys...");
+
+            using var stream = keyVaulterClient.RenewKeysBid();
+
+            var responseProcessing = Task.Run(async () =>
+            {
+                var tripleDesKeyManager = this.keyManagerResolver(nameof(TripleDesKeyManager)) as TripleDesKeyManager;
+                var sharedSecretManager = this.keyManagerResolver(nameof(SharedSecretKeyManager)) as SharedSecretKeyManager;
+                var rsaKeyManager = this.keyManagerResolver(nameof(RsaKeyManager)) as RsaKeyManager;
+
+
+                try
+                {
+                    await foreach (var encryptedReply in stream.ResponseStream.ReadAllAsync())
+                    {
+                        // Get decrption key
+                        var decryptKey = await tripleDesKeyManager.GetKeyAsync(KeyTypeEnum.TripleDes);
+
+                        using var es = new TripleDesService();
+                        var encryptedStr = encryptedReply.Cipher;
+                        var decryptedStr = es.Decrypt(decryptKey.Key1, encryptedStr);
+                        var newKey = JsonConvert.DeserializeObject<CipherKey>(decryptedStr);
+
+                        this.logger.CustomLogWarn($"Update {newKey.KeyType.ToString()} as {decryptedStr}");
+
+                        Task renewTask = newKey.KeyType switch
+                        {
+                            KeyTypeEnum.TripleDes => tripleDesKeyManager.SaveKeyAsync(newKey),
+                            KeyTypeEnum.SharedSecret => sharedSecretManager.UpdateKeysAsync(newKey.KeyType, newKey),
+                            KeyTypeEnum.Rsa => rsaKeyManager.UpdateKeysAsync(newKey.KeyType, newKey),
+                            _ => throw new NotImplementedException()
+                        };
+
+                        await renewTask;
+
+                        this.logger.CustomLogDebug($"{successMsg}");
+                    }
+                }
+                catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+                {
+                    this.logger.LogError(ex, "Stream cancelled.");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogError(ex, "Error reading response: " + ex);
+                    throw;
+                }
+            });
+
+
+            try
+            {
+                var expiredKeys = await this.getExpiredKeys();
+
+                if (expiredKeys != null && expiredKeys.Count > 0)
+                {
+                    this.logger.CustomLogInfo($"There will be {expiredKeys.Count} keys to renew!");
+                    foreach (CipherKey ek in expiredKeys)
+                    {
+                        var encryptedData = await this.encryptKey(ek);
+                        this.logger.CustomLogDebug($"Requesting renew {ek.KeyType.ToString()} ({ek.Id})...");
+                        await stream.RequestStream.WriteAsync(encryptedData);
+                        await Task.Delay(1000); // Simulate delay
+                    }
+                }
+                else
+                    this.logger.CustomLogInfo("No expired keys to renew!");
+            }
+            catch (Exception ex)
+            {
+                this.logger.CustomLogError(ex.Message);
+            }
+
+            // Wait for request steaming done
+            this.logger.CustomLogDebug("Completing renew-keys request stream...");
+            await stream.RequestStream.CompleteAsync();
+            this.logger.CustomLogDebug("Renew-keys request stream completed.");
+
+            // Wait for response steaming done
+            this.logger.CustomLogDebug("Completing renew-keys response stream...");
+            await responseProcessing;
+            this.logger.CustomLogDebug("Renew-keys response stream completed.");
 
             this.logger.CustomLogDebug($"{successMsg}");
         }
@@ -367,6 +459,40 @@ namespace Kms.Client.Dispatcher.Services
             #endregion
 
             return workingKeys;
+        }
+
+        private async Task<List<CipherKey>> getExpiredKeys()
+        {
+            var now = DateTimeOffset.Now;
+            var tripleDesKeyManager = this.keyManagerResolver(nameof(TripleDesKeyManager)) as TripleDesKeyManager;
+            var sharedSecretManager = this.keyManagerResolver(nameof(SharedSecretKeyManager)) as SharedSecretKeyManager;
+            var rsaKeyManager = this.keyManagerResolver(nameof(RsaKeyManager)) as RsaKeyManager;
+
+            #region Get all expired keys
+            var expiredKeys = new List<CipherKey>();
+
+            // Symmetric key
+            var tripleDesKey = await tripleDesKeyManager.GetKeyAsync(KeyTypeEnum.TripleDes);
+            if (tripleDesKey.ExpireOn.ToDateTimeOffset() < now)
+                expiredKeys.Add(tripleDesKey);
+
+            // Shared secret
+            var sharedSecrets = await sharedSecretManager.GetKeysAsync(KeyTypeEnum.SharedSecret);
+            if (sharedSecrets != null && sharedSecrets.Count > 0)
+            {
+                sharedSecrets.Where(k => k.ExpireOn.ToDateTimeOffset() < now).ToList().ForEach(ek => expiredKeys.Add(ek));
+            }
+
+            // RSA
+            var rsaKeys = await rsaKeyManager.GetKeysAsync(KeyTypeEnum.Rsa);
+            if (rsaKeys != null && rsaKeys.Count > 0)
+            {
+                rsaKeys.Where(k => k.ExpireOn.ToDateTimeOffset() < now).ToList().ForEach(k => expiredKeys.Add(k));
+            }
+
+            #endregion
+
+            return expiredKeys;
         }
     }
 }

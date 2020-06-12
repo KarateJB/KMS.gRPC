@@ -91,12 +91,16 @@ namespace Kms.KeyMngr.KeyManager
             KeyTypeEnum keyType, string owner, string authClientId)
         {
             Func<CipherKey, bool> filter = null;
-            var expandoFilters = new Dictionary<string, string>
-                {
-                    { "ClientId", authClientId }
-                };
 
-            filter = x => x.KeyType.Equals(keyType) && x.Owner.Name.Equals(owner) && x.Expando.MatchFilters(expandoFilters);
+            filter = x => x.KeyType.Equals(keyType) && x.Owner.Name.Equals(owner);
+
+            // If you had defined extra field(s) on key's "Expando" field, use the following filter.
+            // var expandoFilters = new Dictionary<string, string>
+            //    {
+            //        { "ClientId", authClientId }
+            //    };
+
+            // filter = x => x.KeyType.Equals(keyType) && x.Owner.Name.Equals(owner) && x.Expando.MatchFilters(expandoFilters);
 
             return await Task.FromResult(filter);
         }

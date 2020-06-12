@@ -2,7 +2,6 @@
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Kms.Client.Dispatcher.Services;
-using Kms.gRPC.Client.Services.Report;
 using Microsoft.AspNetCore.Builder;
 
 namespace Kms.Client.Dispatcher.Utils.Extensions
@@ -13,18 +12,28 @@ namespace Kms.Client.Dispatcher.Utils.Extensions
     public static class IApplicationBuilderExtensions
     {
         /// <summary>
-        /// Configure Auditing key observer
+        /// Register observers for timed services, including audit/renew keys
         /// </summary>
         /// <param name="app">IApplicationBuilder</param>
-        public static void UseTimedAuditKeysService(this IApplicationBuilder app)
+        public static void UseKmsClientObservers(this IApplicationBuilder app)
+        {
+            app.UseTimedAuditKeysObserver();
+            app.UseTimedRenewKeysObserver();
+        }
+
+        /// <summary>
+        /// Configure Auditing keys observer
+        /// </summary>
+        /// <param name="app">IApplicationBuilder</param>
+        private static void UseTimedAuditKeysObserver(this IApplicationBuilder app)
         {
             var keyDispatcher = app.ApplicationServices.GetService(typeof(IKeyDispatcher)) as IKeyDispatcher;
-            var timedClientReportNotifyService = app.ApplicationServices.GetService(typeof(TimedAuditKeyService)) as TimedAuditKeyService;
+            var timedAuditKeysService = app.ApplicationServices.GetService(typeof(TimedAuditKeysService)) as TimedAuditKeysService;
 
             #region Create observable and subscription
-            var observable = Observable.FromEventPattern<AuditKeyEventArgs>(
-                ev => timedClientReportNotifyService.ReportNotify += ev,
-                ev => timedClientReportNotifyService.ReportNotify -= ev);
+            var observable = Observable.FromEventPattern<AuditKeysEventArgs>(
+                ev => timedAuditKeysService.AuditKeysEvents += ev,
+                ev => timedAuditKeysService.AuditKeysEvents -= ev);
 
             observable.Subscribe(x =>
             {
@@ -38,38 +47,27 @@ namespace Kms.Client.Dispatcher.Utils.Extensions
         }
 
         /// <summary>
-        /// Configure TimedKeyCheckService's observer
+        /// Configure Renew keys observer
         /// </summary>
         /// <param name="app">IApplicationBuilder</param>
-        //public static void UseTimedKeyCheckService(this IApplicationBuilder app)
-        //{
-        //    var keyEventService = app.ApplicationServices.GetService(typeof(KeyEventService)) as KeyEventService;
-        //    var timedKeyCheckService = app.ApplicationServices.GetService(typeof(TimedKeyCheckService)) as TimedKeyCheckService;
+        private static void UseTimedRenewKeysObserver(this IApplicationBuilder app)
+        {
+            var keyDispatcher = app.ApplicationServices.GetService(typeof(IKeyDispatcher)) as IKeyDispatcher;
+            var timedRenewKeysService = app.ApplicationServices.GetService(typeof(TimedRenewKeysService)) as TimedRenewKeysService;
 
-        //    #region Create observable and subscription
-        //    var observable = Observable.FromEventPattern<KeyCheckEventArgs>(
-        //        ev => timedKeyCheckService.RenewKey += ev,
-        //        ev => timedKeyCheckService.RenewKey -= ev).Select(x => x.EventArgs.DeprecatedKeys);
+            #region Create observable and subscription
+            var observable = Observable.FromEventPattern<RenewKeysEventArgs>(
+                ev => timedRenewKeysService.RenewKeysEvents += ev,
+                ev => timedRenewKeysService.RenewKeysEvents -= ev);
 
-        //    observable.Subscribe(x =>
-        //    {
-        //        Task.Run(async () =>
-        //        {
-        //            var deprecatedKeys = x;
-
-        //            #region Renew Symmetric keys process
-        //            var deprecatedSymmetricKeys = deprecatedKeys.Where(k => k.KeyType.Equals(KeyTypeEnum.TripleDES)).ToList().AsReadOnly();
-        //            await keyEventService.RenewSymmetricKeyAsync(deprecatedSymmetricKeys);
-        //            #endregion
-
-        //            #region Renew Asymmetric keys process
-        //            var deprecatedAsymmetricKeys = deprecatedKeys.Where(k => k.KeyType.Equals(KeyTypeEnum.RSA)).ToList().AsReadOnly();
-        //            await keyEventService.RenewAsymmetricKeyAsync(deprecatedAsymmetricKeys);
-        //            #endregion
-
-        //        }).Wait();
-        //    });
-        //    #endregion
-        //}
+            observable.Subscribe(x =>
+            {
+                Task.Run(async () =>
+                {
+                    await keyDispatcher.RenewKeysBidAsync();
+                }).Wait();
+            });
+            #endregion
+        }
     }
 }

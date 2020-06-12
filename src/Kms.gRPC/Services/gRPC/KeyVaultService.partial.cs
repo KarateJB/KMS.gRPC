@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Kms.Core;
+using Kms.Core.Utils;
 using Kms.Crypto.Models.DTO;
 using Kms.Crypto.Services;
 using Kms.gRPC.Utils;
@@ -197,6 +198,88 @@ namespace Kms.gRPC.Services.gRPC
             catch (Exception ex)
             {
                 this.logger.LogError(ex, "Report working keys error");
+                throw;
+            }
+        }
+
+        private async Task<EncryptedData> renewAsync(string client, string encryptedKey)
+        {
+            var reportOn = DateTimeOffset.Now;
+
+            try
+            {
+                using var es = new TripleDesService();
+
+                #region Get the Decrypt key
+                var decryptKey =
+                    (await this.keyVault.FindAsync(
+                        KeyEventHubUtils.ExpressAvailableClientKeys(
+                            targetClientName: client.ToString(),
+                            targetKeyType: KeyTypeEnum.TripleDes).Compile()))
+                            .OrderByDescending(x => x.ActiveOn)
+                            .FirstOrDefault();
+
+                if (decryptKey == null)
+                {
+                    this.logger.LogWarning($"No available decrypt key for client: {client.ToString()}!");
+                }
+                #endregion
+
+                #region Decrypt the working keys
+                CipherKey deprecatedKey = null;
+                var json = await es.DecryptAsync(decryptKey.Key1, encryptedKey);
+                deprecatedKey = JsonConvert.DeserializeObject<CipherKey>(json);
+                #endregion
+
+                #region Backup and remove deprecated key
+
+                this.logger.LogDebug($"Start moving deprecated key (Id: {deprecatedKey.Id}) to persistant storage...");
+                await this.keyVault.BackupAsync(deprecatedKey);
+                this.logger.LogDebug($"Successfully moving deprecated key (Id: {deprecatedKey.Id}) to persistant storage.");
+
+                // Remove deprecated keys from Redis
+                this.logger.LogDebug($"Start removing deprecated key (Id: {deprecatedKey.Id})...");
+                await this.keyVault.RemoveAsync(deprecatedKey.Id);
+                this.logger.LogDebug($"Successfully removing deprecated key (Id: {deprecatedKey.Id}).");
+                #endregion
+
+                #region Issue new keys to clients (Owner and Users)
+
+                var newKeyType = deprecatedKey.KeyType;
+                var keyMeta = new KeyMetadata
+                {
+                    Purpose = $"Renew {newKeyType.ToString()} to {client}",
+                    Owner = deprecatedKey.Owner,
+                    Users = deprecatedKey.Users
+                };
+
+                this.logger.LogDebug($"Start creating new {newKeyType.ToString()} key...");
+
+                // Create new Asymmetric key
+                var handler = new DataProtection.Handlers.Handler();
+                CipherKey newKey = await handler.ActionAsync(this.keyVault, newKeyType, keyMeta);
+
+                if (!client.Equals(deprecatedKey.Owner.Name))
+                    newKey.Key2 = string.Empty; // Prevent from sending private key to an user
+
+                this.logger.LogDebug($"Successfully creating new {newKeyType.ToString()} key.");
+                #endregion
+
+                #region Encrypt the new key
+
+                var encryptKey = decryptKey;
+                var cipher = await es.EncryptAsync(encryptKey.Key1, Serializer.ToJsonCamel(newKey));
+                #endregion
+
+                return new EncryptedData
+                {
+                    Client = client,
+                    Cipher = cipher
+                };
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, "Renew key error");
                 throw;
             }
         }
