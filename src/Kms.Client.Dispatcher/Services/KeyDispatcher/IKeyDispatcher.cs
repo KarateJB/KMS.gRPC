@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace Kms.gRPC.Client.Dispatcher
+namespace Kms.Client.Dispatcher.Services
 {
     /// <summary>
     /// Interface of KeyDispatcher

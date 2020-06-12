@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using static Kms.Core.CipherKey.Types;
 
-namespace Kms.gRPC.Client.Dispatcher
+namespace Kms.Client.Dispatcher.Services
 {
     /// <summary>
     /// KeyDispatcher

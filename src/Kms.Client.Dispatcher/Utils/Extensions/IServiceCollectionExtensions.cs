@@ -1,10 +1,9 @@
 ﻿using System;
-using Kms.gRPC.Client.Services.Startup;
 using Kms.Core;
 using Kms.Core.Models.Config;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kms.gRPC.Client.Utils.Extensions
+namespace Kms.Client.Dispatcher.Utils.Extensions
 {
     /// <summary>
     /// IServiceCollectionExtensions
@@ -12,13 +11,18 @@ namespace Kms.gRPC.Client.Utils.Extensions
     public static class IServiceCollectionExtensions
     {
         /// <summary>
-        /// Add startup services
+        /// Add gRPC clients
         /// </summary>
         /// <param name="services">IServiceCollection</param>
         /// <returns>IServiceCollection</returns>
-        public static IServiceCollection AddStartupServices(this IServiceCollection services)
+        public static IServiceCollection AddGrpcClients(this IServiceCollection services, GrpcOptions grpcOptions)
         {
-            services.AddSingleton<IStartupService, SyncKeysStartupService>();
+            services.AddGrpcClient<KeyVaulter.KeyVaulterClient>(o =>
+            {
+                o.Address = new Uri(grpcOptions.Host);
+            }).AddIgnoreValidateCertHttpMessageHandler();
+
+
             return services;
         }
     }

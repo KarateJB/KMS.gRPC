@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using AspNetCore.gRPC;
 using Grpc.Net.Client;
-using Kms.gRPC.Client.Dispatcher;
+using Kms.Client.Dispatcher.Services;
 using Kms.gRPC.Client.Models;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc;

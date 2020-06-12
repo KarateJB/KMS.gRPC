@@ -1,5 +1,6 @@
+using Kms.Client.Dispatcher.Services;
+using Kms.Client.Dispatcher.Utils.Extensions;
 using Kms.Core.Models.Config.Client;
-using Kms.gRPC.Client.Dispatcher;
 using Kms.gRPC.Client.Services.Report;
 using Kms.gRPC.Client.Services.Startup;
 using Kms.gRPC.Client.Utils.Extensions;

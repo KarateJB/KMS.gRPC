@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Kms.gRPC.Client.Dispatcher;
+﻿using System.Threading.Tasks;
+using Kms.Client.Dispatcher.Services;
 using Microsoft.Extensions.Logging;
 
 namespace Kms.gRPC.Client.Services.Startup

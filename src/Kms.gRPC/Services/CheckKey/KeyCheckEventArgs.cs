@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Kms.Core;
 
-namespace Kms.gRPC.Client.Services.CheckKey
+namespace Kms.gRPC.Services.CheckKey
 {
     /// <summary>
     /// KeyCheckEvertArgs

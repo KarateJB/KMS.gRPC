@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AspNetCore.gRPC.Core;
-using AspNetCore.gRPC.Core.Models.Config.Server;
+using Kms.Core;
+using Kms.Core.Models.Config.Server;
+using Kms.gRPC.Services.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using static AspNetCore.gRPC.Core.CipherKey.Types;
+using static Kms.Core.CipherKey.Types;
 
-namespace AspNetCore.gRPC.Client.Services.CheckKey
+namespace Kms.gRPC.Services.CheckKey
 {
     /// <summary>
     /// Timer service for checking key
@@ -38,7 +39,8 @@ namespace AspNetCore.gRPC.Client.Services.CheckKey
             this.keyVault = keyVault;
 
             // Get timer's trigger timing
-            var checkkeyPeriod = this.appSettings?.Kms?.CheckKeyTime ?? DefaultCheckKeyTime;
+            ////var checkkeyPeriod = this.appSettings?.Kms? ?? DefaultCheckKeyTime;
+            var checkkeyPeriod = DefaultCheckKeyTime;
 
             // Logging
             this.logger.LogDebug($"KMS's check-key-timer service will trigger every {checkkeyPeriod.ToString()} seconds");
