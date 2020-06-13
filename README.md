@@ -21,7 +21,7 @@ Key management System in ASP.NET Core 3 gRPC.
 ## About codes
 
 | Project name | Project type | Description | Note |
-|:-------------|:------------|:-----|
+|:-------------|:------------:|:------------|:-----|
 | Kms.gRPC | ASP.NET Core gRPC Service | KMS (server side) | gRPC services |
 | Kms.gRPC.Client | ASP.NET Core Web App | KMS client side | gRPC client |
 | Kms.KeyMngr | Class library |  Key manangement library | |
