@@ -5,12 +5,12 @@ using Kms.Core.Models.Config.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Kms.gRPC.Client.Services.Report
+namespace Kms.Client.Dispatcher.Services
 {
     /// <summary>
     /// Timer service for report notify
     /// </summary>
-    public class TimedAuditKeyService : IDisposable
+    public class TimedAuditKeysService : IDisposable
     {
         private const int DefaultReportNotifyTime = 600;
         private readonly AppSettings appSettings = null;
@@ -23,9 +23,9 @@ namespace Kms.gRPC.Client.Services.Report
         /// </summary>
         /// <param name="configuration">AppSetting options</param>
         /// <param name="logger">Logger</param>
-        public TimedAuditKeyService(
+        public TimedAuditKeysService(
             IOptions<AppSettings> configuration,
-            ILogger<TimedAuditKeyService> logger)
+            ILogger<TimedAuditKeysService> logger)
         {
             this.appSettings = configuration.Value;
             this.logger = logger;
@@ -34,19 +34,19 @@ namespace Kms.gRPC.Client.Services.Report
             var reportNotifyPeriod = this.appSettings?.KmsClient?.ReportNotifyTime ?? DefaultReportNotifyTime;
 
             // Logging
-            this.logger.LogDebug($"KMS's notify-report-timer service will trigger every {reportNotifyPeriod.ToString()} seconds");
+            this.logger.LogDebug($"KMS client's notify-report-timer will trigger every {reportNotifyPeriod.ToString()} seconds.");
 
             // Set timer
             // this.timer = new Timer(this.DoWork, null, TimeSpan.Zero, TimeSpan.FromSeconds(reportNotifyPeriod));
 
             // Reactive
-            subscription = Observable.Interval(TimeSpan.FromSeconds(reportNotifyPeriod)).Subscribe(x => this.InvokeAuditKeyCallback());
+            subscription = Observable.Interval(TimeSpan.FromSeconds(reportNotifyPeriod)).Subscribe(x => this.InvokeAuditKeysCallback());
         }
 
         /// <summary>
         /// Event handler
         /// </summary>
-        public event EventHandler<AuditKeyEventArgs> ReportNotify;
+        public event EventHandler<AuditKeysEventArgs> AuditKeysEvents;
 
         /// <summary>
         /// Dispose
@@ -60,15 +60,15 @@ namespace Kms.gRPC.Client.Services.Report
 
         private void DoWork(object state)
         {
-            this.InvokeAuditKeyCallback();
+            this.InvokeAuditKeysCallback();
         }
 
-        private void InvokeAuditKeyCallback()
+        private void InvokeAuditKeysCallback()
         {
-            this.logger.LogDebug($"Start report working keys...");
+            this.logger.LogDebug($"Invoke auditing working keys...");
 
-            var eventArgs = new AuditKeyEventArgs();
-            this.ReportNotify?.Invoke(this, eventArgs);
+            var eventArgs = new AuditKeysEventArgs();
+            this.AuditKeysEvents?.Invoke(this, eventArgs);
         }
     }
 }

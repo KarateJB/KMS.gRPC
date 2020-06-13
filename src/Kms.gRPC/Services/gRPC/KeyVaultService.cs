@@ -205,5 +205,53 @@ namespace Kms.gRPC.Services.gRPC
 
             this.logger.LogDebug("Completed response streaming");
         }
+
+        public override async Task RenewKeysBid(
+            IAsyncStreamReader<EncryptedData> requestStream,
+            IServerStreamWriter<EncryptedData> responseStream,
+            ServerCallContext context)
+        {
+            string client = string.Empty;
+
+            // Use a channel here to handle in-process 'messages' concurrently being written to and read from the channel.
+            var channel = Channel.CreateUnbounded<EncryptedData>();
+
+            // Background task which uses async streams to write each request from the channel to the response steam.
+            _ = Task.Run(async () =>
+            {
+                await foreach (var encryptedData in channel.Reader.ReadAllAsync())
+                {
+                    await responseStream.WriteAsync(encryptedData);
+                }
+            });
+
+            // A list of tasks handling requests concurrently
+            var renewTasks = new List<Task>();
+
+            await foreach (var encryptedData in requestStream.ReadAllAsync())
+            {
+                client = encryptedData.Client;
+                this.logger.CustomLogDebug($"Getting report from {client}");
+
+                // Get audit report
+                var renewTask = this.renewAsync(encryptedData.Client, encryptedData.Cipher);
+
+                // Add the request handling task
+                renewTasks.Add(renewTask);
+
+                // Write the response result to the channel which will be picked up concurrently by the channel reading background task
+                await channel.Writer.WriteAsync(renewTask.Result);
+            }
+
+            // Wait for all responses to be written to the channel 
+            await Task.WhenAll(renewTasks);
+
+            channel.Writer.TryComplete();
+
+            // Wait for all responses to be read from the channel and streamed as responses
+            await channel.Reader.Completion;
+
+            this.logger.LogDebug("Completed response streaming");
+        }
     }
 }

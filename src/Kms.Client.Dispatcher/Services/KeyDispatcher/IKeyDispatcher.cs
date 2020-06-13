@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace Kms.gRPC.Client.Dispatcher
+namespace Kms.Client.Dispatcher.Services
 {
     /// <summary>
     /// Interface of KeyDispatcher
@@ -39,13 +39,18 @@ namespace Kms.gRPC.Client.Dispatcher
         // Task<bool> GetSharedSecretsAsync();
 
         /// <summary>
-        /// Report working keys to server
+        /// Audit working keys
         /// </summary>
         Task AuditWorkingKeysAsync();
 
         /// <summary>
-        /// Report working keys to server
+        /// Audit working keys
         /// </summary>
         Task AuditWorkingKeysBidAsync();
+
+        /// <summary>
+        /// Renew expire keys
+        /// </summary>
+        Task RenewKeysBidAsync();
     }
 }

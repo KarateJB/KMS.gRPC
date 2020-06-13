@@ -30,8 +30,4 @@
     <Protobuf Include="Protos\greet.proto" GrpcServices="Server" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Services\DataProtection\" />
-  </ItemGroup>
-
 </Project>

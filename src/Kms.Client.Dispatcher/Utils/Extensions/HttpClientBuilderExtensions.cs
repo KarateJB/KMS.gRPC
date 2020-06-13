@@ -1,7 +1,7 @@
 ﻿using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kms.gRPC.Client.Utils.Extensions
+namespace Kms.Client.Dispatcher.Utils.Extensions
 {
     /// <summary>
     /// HttpClientBuilderExtensions

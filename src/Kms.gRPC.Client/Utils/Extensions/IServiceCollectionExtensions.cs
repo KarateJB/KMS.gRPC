@@ -12,22 +12,6 @@ namespace Kms.gRPC.Client.Utils.Extensions
     public static class IServiceCollectionExtensions
     {
         /// <summary>
-        /// Add gRPC clients
-        /// </summary>
-        /// <param name="services">IServiceCollection</param>
-        /// <returns>IServiceCollection</returns>
-        public static IServiceCollection AddGrpcClients(this IServiceCollection services, GrpcOptions grpcOptions)
-        {
-            services.AddGrpcClient<KeyVaulter.KeyVaulterClient>(o =>
-            {
-                o.Address = new Uri(grpcOptions.Host);
-            }).AddIgnoreValidateCertHttpMessageHandler();
-
-
-            return services;
-        }
-
-        /// <summary>
         /// Add startup services
         /// </summary>
         /// <param name="services">IServiceCollection</param>
