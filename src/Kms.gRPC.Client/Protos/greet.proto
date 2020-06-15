@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option csharp_namespace = "AspNetCore.gRPC";
+option csharp_namespace = "Kms.gRPC";
 
 package greet;
 
