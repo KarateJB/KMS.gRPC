@@ -52,7 +52,7 @@ namespace Kms.gRPC.Services.gRPC
             return key;
         }
 
-        public override async Task<EncryptedData> CreateAsymmetricKeys(KeyRequest request, ServerCallContext context)
+        public override async Task<EncryptedData> CreateAsymmetricKey(KeyRequest request, ServerCallContext context)
         {
             var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
             var now = DateTimeOffset.Now;

@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
-using AspNetCore.gRPC;
 using Grpc.Net.Client;
 using Kms.Client.Dispatcher.Services;
 using Kms.gRPC.Client.Models;

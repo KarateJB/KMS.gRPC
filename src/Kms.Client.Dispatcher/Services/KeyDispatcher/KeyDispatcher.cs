@@ -146,7 +146,7 @@ namespace Kms.Client.Dispatcher.Services
             this.logger.CustomLogDebug("Start creating asymmetric key from KMS...");
 
             // Create Asymmetric key
-            EncryptedData encryptedData = await this.keyVaulterClient.CreateAsymmetricKeysAsync(new KeyRequest { Client = MockClients.Me });
+            EncryptedData encryptedData = await this.keyVaulterClient.CreateAsymmetricKeyAsync(new KeyRequest { Client = MockClients.Me });
 
             try
             {
