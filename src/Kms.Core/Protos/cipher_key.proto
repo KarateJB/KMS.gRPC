@@ -4,6 +4,7 @@ option csharp_namespace = "Kms.Core";
 
 import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
+import "Protos/key_type_enum.proto";
 
 // CipherKey
 message CipherKey {
@@ -18,13 +19,6 @@ message CipherKey {
   message CipherKeyUser {
     string Name = 1;
     string Host = 2;
-  }
-
-  // Key type
-  enum KeyTypeEnum {
-    SharedSecret = 0;
-    TripleDES = 1;
-    RSA = 2;
   }
 
   // GUID

@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option csharp_namespace = "Kms.Core";
+
+// Key type
+enum KeyTypeEnum {
+
+	SharedSecret = 0;
+	
+	TripleDES = 1;
+
+	RSA = 2;
+}

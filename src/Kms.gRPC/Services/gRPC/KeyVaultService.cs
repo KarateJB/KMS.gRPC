@@ -35,7 +35,7 @@ namespace Kms.gRPC.Services.gRPC
             this.keyAuditReporter = keyAuditReporter;
         }
 
-        public override async Task<CipherKey> CreateSymmentricKey(KeyRequest request, ServerCallContext context)
+        public override async Task<CipherKey> CreateSymmentricKey(CreateKeyRequest request, ServerCallContext context)
         {
             var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
             var now = DateTimeOffset.Now;
@@ -52,7 +52,7 @@ namespace Kms.gRPC.Services.gRPC
             return key;
         }
 
-        public override async Task<EncryptedData> CreateAsymmetricKey(KeyRequest request, ServerCallContext context)
+        public override async Task<EncryptedData> CreateAsymmetricKey(CreateKeyRequest request, ServerCallContext context)
         {
             var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
             var now = DateTimeOffset.Now;
@@ -70,7 +70,7 @@ namespace Kms.gRPC.Services.gRPC
         }
 
         public override async Task CreateSharedSectets(
-            KeyRequest request, IServerStreamWriter<EncryptedData> responseStream, ServerCallContext context)
+            CreateKeyRequest request, IServerStreamWriter<EncryptedData> responseStream, ServerCallContext context)
         {
             this.logger.LogDebug("Start streaming for creating multiple shared secrets...");
 

@@ -54,7 +54,7 @@ namespace Kms.Client.Dispatcher.Services
             this.logger.CustomLogDebug("Start creating symmetric key from KMS...");
 
             // Create Symmetric key
-            CipherKey symmetricKey = await this.keyVaulterClient.CreateSymmentricKeyAsync(new KeyRequest { Client = MockClients.Me });
+            CipherKey symmetricKey = await this.keyVaulterClient.CreateSymmentricKeyAsync(new CreateKeyRequest { Client = MockClients.Me });
 
             if (symmetricKey != null)
             {
@@ -84,7 +84,7 @@ namespace Kms.Client.Dispatcher.Services
 
             this.logger.CustomLogDebug("Start creating shared secrets from KMS...");
 
-            using var stream = this.keyVaulterClient.CreateSharedSectets(new KeyRequest { Client = MockClients.Me });
+            using var stream = this.keyVaulterClient.CreateSharedSectets(new CreateKeyRequest { Client = MockClients.Me });
 
             var responseProcessing = Task.Run(async () =>
             {
@@ -102,7 +102,7 @@ namespace Kms.Client.Dispatcher.Services
                         var encryptedStr = encryptedReply.Cipher;
                         var decryptedStr = es.Decrypt(decryptKey.Key1, encryptedStr);
                         var sharedSecret = JsonConvert.DeserializeObject<CipherKey>(decryptedStr);
-                        await sharedSecretManager.UpdateKeysAsync(CipherKey.Types.KeyTypeEnum.SharedSecret, sharedSecret);
+                        await sharedSecretManager.UpdateKeysAsync(KeyTypeEnum.SharedSecret, sharedSecret);
 
                         this.logger.CustomLogDebug($"{successMsg}");
                     }
@@ -146,7 +146,7 @@ namespace Kms.Client.Dispatcher.Services
             this.logger.CustomLogDebug("Start creating asymmetric key from KMS...");
 
             // Create Asymmetric key
-            EncryptedData encryptedData = await this.keyVaulterClient.CreateAsymmetricKeyAsync(new KeyRequest { Client = MockClients.Me });
+            EncryptedData encryptedData = await this.keyVaulterClient.CreateAsymmetricKeyAsync(new CreateKeyRequest { Client = MockClients.Me });
 
             try
             {
@@ -162,7 +162,7 @@ namespace Kms.Client.Dispatcher.Services
                     using var es = new TripleDesService();
                     var decryptedJson = es.Decrypt(decryptKey.Key1, encryptedData.Cipher);
                     var asymmetricKey = JsonConvert.DeserializeObject<CipherKey>(decryptedJson);
-                    await rsaKeyManager.UpdateKeysAsync(CipherKey.Types.KeyTypeEnum.Rsa, asymmetricKey);
+                    await rsaKeyManager.UpdateKeysAsync(KeyTypeEnum.Rsa, asymmetricKey);
 
                     this.logger.CustomLogDebug($"{successMsg} {asymmetricKey.ToString()}");
                 }
