@@ -65,3 +65,9 @@ Client use a timer to checks its keys' expiration date. If a key is expired, cli
 | Kms.Core | Class library | Protocol buffers for entire projects, and reusable utilities | |
 
 
+
+## Reference
+
+- [[ASP.NET Core] gRPC - Get started](https://karatejb.blogspot.com/2020/06/aspnet-core-grpc-get-started.html)
+
+
