@@ -49,6 +49,7 @@ namespace Kms.gRPC.Controllers.Report
                 }
             }
 
+            ViewData["Title"] = "Audit Report";
             return this.View(viewModel);
         }
     }

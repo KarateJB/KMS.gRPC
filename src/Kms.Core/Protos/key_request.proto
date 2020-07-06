@@ -22,5 +22,5 @@ message GetKeyRequest {
   KeyTypeEnum KeyType = 2;
 
   // Ask for whose key
-  repeated string Owner = 3;
+  repeated string Owners = 3;
 }

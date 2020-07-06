@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Kms.Core;
 using Kms.Core.Utils;
+using Kms.Core.Utils.Extensions;
 using Kms.Crypto.Models.DTO;
 using Kms.Crypto.Services;
 using Kms.gRPC.Utils;
@@ -17,26 +19,10 @@ namespace Kms.gRPC.Services.gRPC
         /// <summary>
         /// Get encrypted shared secret
         /// </summary>
-        /// <param name="master">Master: who want to get the shared secret</param>
         /// <param name="client">Client: the owner of the shared secret</param>
         /// <returns>Cipher</returns>
-        private async Task<string> getEncryptedAsymmetricKey(string client)
+        private async Task<string> getOrCreateEncryptedAsymmetricKey(string client)
         {
-            #region Get the Encrypt key for master
-            var encryptKey =
-                (await this.keyVault.FindAsync(
-                    KeyEventHubUtils.ExpressAvailableClientKeys(
-                        targetClientName: client.ToString(),
-                        targetKeyType: KeyTypeEnum.TripleDes).Compile()))
-                        .OrderByDescending(x => x.ActiveOn).FirstOrDefault();
-
-            if (encryptKey == null)
-            {
-                this.logger.LogWarning($"No available encrypt key for client: {client.ToString()}!");
-                return null;
-            }
-            #endregion
-
             #region Get the exist asymmetric key or create one
 
             var finalRsaKey = default(CipherKey);
@@ -74,13 +60,7 @@ namespace Kms.gRPC.Services.gRPC
 
             #endregion
 
-            #region Encrypt the asymmetric key
-
-            using var es = new TripleDesService();
-            string originData = JsonConvert.SerializeObject(finalRsaKey);
-            var cipher = await es.EncryptAsync(encryptKey.Key1, originData);
-            return cipher;
-            #endregion
+            return await this.encryptAsync(client, finalRsaKey);
         }
 
         /// <summary>
@@ -89,23 +69,8 @@ namespace Kms.gRPC.Services.gRPC
         /// <param name="client">Client: who want to get the shared secret</param>
         /// <param name="owner">Owner: the owner of the shared secret</param>
         /// <returns>Cipher</returns>
-        private async Task<string> getEncryptedShareSecret(string client, string owner)
+        private async Task<string> getOrCreateEncryptedShareSecret(string client, string owner)
         {
-            #region Get the Encrypt key for master
-            var encryptKey =
-                (await this.keyVault.FindAsync(
-                    KeyEventHubUtils.ExpressAvailableClientKeys(
-                        targetClientName: client.ToString(),
-                        targetKeyType: KeyTypeEnum.TripleDes).Compile()))
-                        .OrderByDescending(x => x.ActiveOn).FirstOrDefault();
-
-            if (encryptKey == null)
-            {
-                this.logger.LogWarning($"No available encrypt key for client: {owner.ToString()}!");
-                return null;
-            }
-            #endregion
-
             #region Get the exist Shared secret or create them
 
             var finalSharedSecret = default(CipherKey);
@@ -148,21 +113,76 @@ namespace Kms.gRPC.Services.gRPC
 
             #endregion
 
-            #region Encrypt the shared secret for master
+            return await this.encryptAsync(client, finalSharedSecret);
+        }
 
-            using (var es = new TripleDesService())
+        /// <summary>
+        /// Get the encrypted key of the owner
+        /// </summary>
+        /// <param name="keyType">Key type</param>
+        /// <param name="client">Client</param>
+        /// <param name="owner">Owner</param>
+        /// <returns>Cipher</returns>
+        private async Task<string> getEncryptedKeyAsync(KeyTypeEnum keyType, string client, string owner)
+        {
+            CipherKey key = default(CipherKey);
+
+            switch (keyType)
             {
-                string originData = JsonConvert.SerializeObject(finalSharedSecret);
-                var cipher = await es.EncryptAsync(encryptKey.Key1, originData);
-                return cipher;
+                case KeyTypeEnum.SharedSecret:
+                case KeyTypeEnum.Rsa:
+                    key = (await this.keyVault.FindAsync(x => x.KeyType.Equals(keyType) && x.Owner.Name.Equals(owner))).FirstOrDefault();
+
+                    // Clear private key information if client is not the owner of the RSA key pair
+                    if (keyType.Equals(KeyTypeEnum.Rsa) && !client.Equals(owner))
+                        key.Key2 = string.Empty;
+
+                    break;
+                default:
+                    throw new NotSupportedException(keyType.ToString());
             }
+
+            return await this.encryptAsync(client, key);
+        }
+
+        /// <summary>
+        /// Encrypt something with the client's symmetric key
+        /// </summary>
+        /// <param name="client">Client</param>
+        /// <param name="data">Data to encrypt</param>
+        /// <returns>Cipher(Encrypted string)</returns>
+        private async Task<string> encryptAsync(string client, object data)
+        {
+            #region Get the Encrypt key of the client
+
+            var encryptKey =
+                (await this.keyVault.FindAsync(
+                    KeyEventHubUtils.ExpressAvailableClientKeys(
+                        targetClientName: client.ToString(),
+                        targetKeyType: KeyTypeEnum.TripleDes).Compile()))
+                        .OrderByDescending(x => x.ActiveOn).FirstOrDefault();
+
+            if (encryptKey == null)
+            {
+                string err = $"No available encrypt key for client: {client.ToString()}!";
+                this.logger.LogWarning(err);
+                throw new InvalidOperationException(err);
+            }
+            #endregion
+
+            #region Encrypt the data
+
+            using var es = new TripleDesService();
+            string originData = JsonConvert.SerializeObject(data);
+            var cipher = await es.EncryptAsync(encryptKey.Key1, originData);
+            return cipher;
             #endregion
         }
 
         private async Task<KeyAuditReport> auditAsync(string client, string encryptedKey)
         {
             var reportOn = DateTimeOffset.Now;
-            
+
             try
             {
                 #region Get the Decrypt key

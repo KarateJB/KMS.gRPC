@@ -5,7 +5,7 @@ Key management System in ASP.NET Core 3 gRPC.
 ## Features
 
 - Supports TripleDES, Secret(MD5), RSA keypair distribution.
-- Custom cycle time to audit keys in client side.
+- Custom cycle time to audit keys in client side. The audit report can be seen in [https://kms:5001/report/index](https://localhost:5001/report/index).
 - Custom cycle time to renew expired keys.
 - Crypto library that supports
   * TripleDES encryption/decryption.

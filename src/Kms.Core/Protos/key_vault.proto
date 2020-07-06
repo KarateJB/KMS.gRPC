@@ -15,11 +15,17 @@ service KeyVaulter {
   // Unary RPC: Create symmetric key
   rpc CreateSymmentricKey (CreateKeyRequest) returns (CipherKey);
 
-  // Unary RPC: Create asymmetric key
+  // Unary RPC: Create single asymmetric key
   rpc CreateAsymmetricKey (CreateKeyRequest) returns (EncryptedData);
 
   // Server streaming RPC: Create shared secrets
   rpc CreateSharedSectets (CreateKeyRequest) returns (stream EncryptedData);
+
+  // Unary RPC: Get single shared secret
+  rpc GetSharedSectet (GetKeyRequest) returns (EncryptedData);
+
+  // Server streaming RPC: Get others' public keys 
+  rpc GetPublicKeys (GetKeyRequest) returns (stream EncryptedData);
 
   // Client streaming RPC: Audit working keys
   rpc AuditWorkingKeys (stream EncryptedData) returns (KeyAuditReports);
