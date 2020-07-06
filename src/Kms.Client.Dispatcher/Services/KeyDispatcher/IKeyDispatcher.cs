@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Kms.Core;
 
 namespace Kms.Client.Dispatcher.Services
 {
@@ -10,47 +12,55 @@ namespace Kms.Client.Dispatcher.Services
         /// <summary>
         /// Create and sync an asymmetric key-pair
         /// </summary>
+        /// <param name="client">Client</param>
         /// <returns>true(OK)/false(NG)</returns>
-        Task<bool> CreateAsymmetricKeyAsync();
+        Task<bool> CreateAsymmetricKeyAsync(string client);
 
         /// <summary>
         /// Create and sync shared secrets
         /// </summary>
+        /// <param name="client">Client</param>
         /// <returns>true(OK)/false(NG)</returns>
-        Task<bool> CreateSharedSecretsAsync();
+        Task<bool> CreateSharedSecretsAsync(string client);
 
         /// <summary>
         /// Sync first symmetric key
         /// </summary>
+        /// <param name="client">Client</param>
         /// <returns>true(OK)/false(NG)</returns>
-        Task<bool> CreateSymmetricKeyAsync();
-
-        /// <summary>
-        /// Get reciever's public key
-        /// </summary>
-        /// <param name="receiver">Receiver</param>
-        /// <returns>true(OK)/false(NG)</returns>
-        // Task<bool> GetPublicKeyAsync(string receiver);
+        Task<bool> CreateSymmetricKeyAsync(string client);
 
         /// <summary>
         /// Get shared secret(s) of certain client
         /// </summary>
-        /// <returns>true(OK)/false(NG)</returns>
-        // Task<bool> GetSharedSecretsAsync();
+        /// <param name="client">Client</param>
+        /// <returns>Shared secrets</returns>
+        Task<IReadOnlyCollection<CipherKey>> GetSharedSecretsAsync(string client);
+
+        /// <summary>
+        /// Get recievers' public keys
+        /// </summary>
+        /// <param name="client">Client</param>
+        /// <param name="receiver">Receiver</param>
+        /// <returns>Public keys</returns>
+        Task<IReadOnlyCollection<CipherKey>> GetPublicKeysAsync(string client, IList<string> receivers);
 
         /// <summary>
         /// Audit working keys
         /// </summary>
-        Task AuditWorkingKeysAsync();
+        /// <param name="client">Client</param>
+        Task AuditWorkingKeysAsync(string client);
 
         /// <summary>
         /// Audit working keys
         /// </summary>
-        Task AuditWorkingKeysBidAsync();
+        /// <param name="client">Client</param>
+        Task AuditWorkingKeysBidAsync(string client);
 
         /// <summary>
         /// Renew expire keys
         /// </summary>
-        Task RenewKeysBidAsync();
+        /// <param name="client">Client</param>
+        Task RenewKeysBidAsync(string client);
     }
 }

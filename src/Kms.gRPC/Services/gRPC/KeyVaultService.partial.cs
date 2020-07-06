@@ -117,32 +117,29 @@ namespace Kms.gRPC.Services.gRPC
         }
 
         /// <summary>
-        /// Get the encrypted key of the owner
+        /// Get the encrypted keys of the owner
         /// </summary>
         /// <param name="keyType">Key type</param>
         /// <param name="client">Client</param>
         /// <param name="owner">Owner</param>
         /// <returns>Cipher</returns>
-        private async Task<string> getEncryptedKeyAsync(KeyTypeEnum keyType, string client, string owner)
+        private async Task<string> getEncryptedKeysAsync(KeyTypeEnum keyType, string client, string owner)
         {
-            CipherKey key = default(CipherKey);
-
             switch (keyType)
             {
                 case KeyTypeEnum.SharedSecret:
                 case KeyTypeEnum.Rsa:
-                    key = (await this.keyVault.FindAsync(x => x.KeyType.Equals(keyType) && x.Owner.Name.Equals(owner))).FirstOrDefault();
+                    var keys = await this.keyVault.FindAsync(x => x.KeyType.Equals(keyType) && x.Owner.Name.Equals(owner));
 
                     // Clear private key information if client is not the owner of the RSA key pair
                     if (keyType.Equals(KeyTypeEnum.Rsa) && !client.Equals(owner))
-                        key.Key2 = string.Empty;
+                        keys.ForEach(k => k.Key2 = string.Empty);
 
-                    break;
+                    return await this.encryptAsync(client, keys);
                 default:
                     throw new NotSupportedException(keyType.ToString());
             }
 
-            return await this.encryptAsync(client, key);
         }
 
         /// <summary>

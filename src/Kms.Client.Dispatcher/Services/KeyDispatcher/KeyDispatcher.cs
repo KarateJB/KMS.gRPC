@@ -9,11 +9,8 @@ using Kms.Core.Utils.Extensions;
 using Kms.Crypto.Services;
 using Kms.KeyMngr.KeyManager;
 using Kms.KeyMngr.Utils.Extensions;
-using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Bcpg.Sig;
-using static Kms.Core.CipherKey.Types;
 
 namespace Kms.Client.Dispatcher.Services
 {
@@ -45,8 +42,9 @@ namespace Kms.Client.Dispatcher.Services
         /// <summary>
         /// Create Symmetric Key
         /// </summary>
+        /// <param name="client">Client</param>
         /// <returns>True/False</returns>
-        public async Task<bool> CreateSymmetricKeyAsync()
+        public async Task<bool> CreateSymmetricKeyAsync(string client)
         {
             const string successMsg = "Successfully creating symmetric key from KMS.";
             const string failMsg = "Fails to create symmetric key from KMS!";
@@ -54,7 +52,7 @@ namespace Kms.Client.Dispatcher.Services
             this.logger.CustomLogDebug("Start creating symmetric key from KMS...");
 
             // Create Symmetric key
-            CipherKey symmetricKey = await this.keyVaulterClient.CreateSymmentricKeyAsync(new CreateKeyRequest { Client = MockClients.Me });
+            CipherKey symmetricKey = await this.keyVaulterClient.CreateSymmentricKeyAsync(new CreateKeyRequest { Client = client });
 
             if (symmetricKey != null)
             {
@@ -76,15 +74,16 @@ namespace Kms.Client.Dispatcher.Services
         /// <summary>
         /// Create SharedSecrets
         /// </summary>
+        /// <param name="client">Client</param>
         /// <returns>True/False</returns>
-        public async Task<bool> CreateSharedSecretsAsync()
+        public async Task<bool> CreateSharedSecretsAsync(string client)
         {
             const string successMsg = "Successfully creating shared secrets from KMS.";
             const string failMsg = "Fails to create shared secrets from KMS!";
 
             this.logger.CustomLogDebug("Start creating shared secrets from KMS...");
 
-            using var stream = this.keyVaulterClient.CreateSharedSectets(new CreateKeyRequest { Client = MockClients.Me });
+            using var stream = this.keyVaulterClient.CreateSharedSectets(new CreateKeyRequest { Client = client });
 
             var responseProcessing = Task.Run(async () =>
             {
@@ -104,7 +103,6 @@ namespace Kms.Client.Dispatcher.Services
                         var sharedSecret = JsonConvert.DeserializeObject<CipherKey>(decryptedStr);
                         await sharedSecretManager.UpdateKeysAsync(KeyTypeEnum.SharedSecret, sharedSecret);
 
-                        this.logger.CustomLogDebug($"{successMsg}");
                     }
                 }
                 catch (RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Cancelled)
@@ -122,6 +120,7 @@ namespace Kms.Client.Dispatcher.Services
             try
             {
                 await responseProcessing;
+                this.logger.CustomLogDebug($"{successMsg}");
                 return SUCCESS;
             }
             catch (Exception ex)
@@ -137,8 +136,9 @@ namespace Kms.Client.Dispatcher.Services
         /// <summary>
         /// Create Asymmetric Key
         /// </summary>
+        /// <param name="client">Client</param>
         /// <returns>True/False</returns>
-        public async Task<bool> CreateAsymmetricKeyAsync()
+        public async Task<bool> CreateAsymmetricKeyAsync(string client)
         {
             const string successMsg = "Successfully creating asymmetric key from KMS.";
             const string failMsg = "Fails to create asymmetric key from KMS!";
@@ -146,7 +146,7 @@ namespace Kms.Client.Dispatcher.Services
             this.logger.CustomLogDebug("Start creating asymmetric key from KMS...");
 
             // Create Asymmetric key
-            EncryptedData encryptedData = await this.keyVaulterClient.CreateAsymmetricKeyAsync(new CreateKeyRequest { Client = MockClients.Me });
+            EncryptedData encryptedData = await this.keyVaulterClient.CreateAsymmetricKeyAsync(new CreateKeyRequest { Client = client });
 
             try
             {
@@ -179,12 +179,123 @@ namespace Kms.Client.Dispatcher.Services
         }
         #endregion
 
+        #region GetSharedSecretsAsync
+
+        /// <summary>
+        /// Get shared secret(s) of certain client
+        /// </summary>
+        /// <param name="client">Client</param>
+        /// <returns>true(OK)/false(NG)</returns>
+        public async Task<IReadOnlyCollection<CipherKey>> GetSharedSecretsAsync(string client)
+        {
+            const string successMsg = "Successfully getting shared secrets from KMS.";
+            const string failMsg = "Fails to gettting shared secrets from KMS!";
+            this.logger.CustomLogDebug("Start getting shared secrets from KMS...");
+
+            var encryptedReply = await this.keyVaulterClient.GetSharedSectetsAsync(
+                new GetKeyRequest { Client = client, KeyType = KeyTypeEnum.SharedSecret });
+
+            try
+            {
+                // Get decrption key
+                var tripleDesKeyManager = this.keyManagerResolver(nameof(TripleDesKeyManager)) as TripleDesKeyManager;
+                var decryptKey = await tripleDesKeyManager.GetKeyAsync(KeyTypeEnum.TripleDes);
+
+                using var es = new TripleDesService();
+                var encryptedStr = encryptedReply.Cipher;
+                var decryptedStr = es.Decrypt(decryptKey.Key1, encryptedStr);
+                var keys = JsonConvert.DeserializeObject<IReadOnlyCollection<CipherKey>>(decryptedStr);
+
+                // Callback when getting keys from response stream
+                // ... Do nothing, just return
+
+                this.logger.CustomLogDebug($"{successMsg}");
+                return keys;
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, failMsg);
+                throw;
+            }
+        }
+        #endregion
+
+        #region GetPublicKeysAsync
+
+        /// <summary>
+        /// Get recievers' public keys
+        /// </summary>
+        /// <param name="client">Client</param>
+        /// <param name="receiver">Receivers(The public key's owner)</param>
+        /// <returns>true(OK)/false(NG)</returns>
+        public async Task<IReadOnlyCollection<CipherKey>> GetPublicKeysAsync(string client, IList<string> receivers)
+        {
+            const string successMsg = "Successfully getting public keys from KMS.";
+            const string failMsg = "Fails to get public keys from KMS!";
+            this.logger.CustomLogDebug("Start getting public keys from KMS...");
+
+            var publicKeys = new List<CipherKey>();
+
+            // Init GetKeyRequest
+            var request = new GetKeyRequest() { Client = client, KeyType = KeyTypeEnum.Rsa };
+            request.Owners.AddRange(receivers);
+
+            using var stream = this.keyVaulterClient.GetPublicKeys(request);
+
+            var responseProcessing = Task.Run(async () =>
+            {
+                var tripleDesKeyManager = this.keyManagerResolver(nameof(TripleDesKeyManager)) as TripleDesKeyManager;
+
+                // Get decrption key
+                var decryptKey = await tripleDesKeyManager.GetKeyAsync(KeyTypeEnum.TripleDes);
+
+                try
+                {
+                    await foreach (var encryptedReply in stream.ResponseStream.ReadAllAsync())
+                    {
+                        using var es = new TripleDesService();
+                        var encryptedStr = encryptedReply.Cipher;
+                        var decryptedStr = es.Decrypt(decryptKey.Key1, encryptedStr);
+                        var keys = JsonConvert.DeserializeObject<IReadOnlyCollection<CipherKey>>(decryptedStr);
+
+                        // Callback when getting keys from response stream.
+                        if(keys!=null)
+                            publicKeys.AddRange(keys);
+                    }
+                }
+                catch (RpcException ex) when (ex.StatusCode == Grpc.Core.StatusCode.Cancelled)
+                {
+                    this.logger.LogError(ex, "Stream cancelled.");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogError(ex, "Error reading response.");
+                    throw;
+                }
+            });
+
+            try
+            {
+                await responseProcessing;
+                this.logger.CustomLogDebug($"{successMsg}");
+                return publicKeys.AsReadOnly();
+            }
+            catch (Exception ex)
+            {
+                this.logger.LogError(ex, failMsg);
+                throw;
+            }
+        }
+        #endregion
+
         #region Audit Working Keys
 
         /// <summary>
         /// Audit Working Keys
         /// </summary>
-        public async Task AuditWorkingKeysAsync()
+        /// <param name="client">Client</param>
+        public async Task AuditWorkingKeysAsync(string client)
         {
             const string successMsg = "Successfully auditing working keys.";
 
@@ -197,7 +308,7 @@ namespace Kms.Client.Dispatcher.Services
                 var workingKeys = await this.getWorkingKeys();
                 foreach (CipherKey wk in workingKeys)
                 {
-                    var encryptedData = await this.encryptKey(wk);
+                    var encryptedData = await this.encryptKey(client, wk);
                     this.logger.CustomLogDebug($"Requesting audit for {wk.KeyType.ToString()} ({wk.Id})...");
                     await stream.RequestStream.WriteAsync(encryptedData);
                     await Task.Delay(2500); // Simulate delay
@@ -237,7 +348,8 @@ namespace Kms.Client.Dispatcher.Services
         /// <summary>
         /// Audit Working Keys (Bidirection)
         /// </summary>
-        public async Task AuditWorkingKeysBidAsync()
+        /// <param name="client">Client</param>
+        public async Task AuditWorkingKeysBidAsync(string client)
         {
             const string successMsg = "Successfully auditing working keys.";
 
@@ -276,7 +388,7 @@ namespace Kms.Client.Dispatcher.Services
                 var workingKeys = await this.getWorkingKeys();
                 foreach (CipherKey wk in workingKeys)
                 {
-                    var encryptedData = await this.encryptKey(wk);
+                    var encryptedData = await this.encryptKey(client, wk);
                     this.logger.CustomLogDebug($"Requesting audit for {wk.KeyType.ToString()} ({wk.Id})...");
                     await stream.RequestStream.WriteAsync(encryptedData);
                     await Task.Delay(2000); // Simulate delay
@@ -303,7 +415,11 @@ namespace Kms.Client.Dispatcher.Services
 
         #region Renew Keys
 
-        public async Task RenewKeysBidAsync()
+        /// <summary>
+        /// Renew keys (Bidirection)
+        /// </summary>
+        /// <param name="client">Client</param>
+        public async Task RenewKeysBidAsync(string client)
         {
             const string successMsg = "Successfully renewing keys to KMS.";
 
@@ -316,7 +432,6 @@ namespace Kms.Client.Dispatcher.Services
                 var tripleDesKeyManager = this.keyManagerResolver(nameof(TripleDesKeyManager)) as TripleDesKeyManager;
                 var sharedSecretManager = this.keyManagerResolver(nameof(SharedSecretKeyManager)) as SharedSecretKeyManager;
                 var rsaKeyManager = this.keyManagerResolver(nameof(RsaKeyManager)) as RsaKeyManager;
-
 
                 try
                 {
@@ -367,7 +482,7 @@ namespace Kms.Client.Dispatcher.Services
                     this.logger.CustomLogInfo($"There will be {expiredKeys.Count} keys to renew!");
                     foreach (CipherKey ek in expiredKeys)
                     {
-                        var encryptedData = await this.encryptKey(ek);
+                        var encryptedData = await this.encryptKey(client, ek);
                         this.logger.CustomLogDebug($"Requesting renew {ek.KeyType.ToString()} ({ek.Id})...");
                         await stream.RequestStream.WriteAsync(encryptedData);
                         await Task.Delay(1000); // Simulate delay
@@ -395,11 +510,11 @@ namespace Kms.Client.Dispatcher.Services
         }
         #endregion
 
-        private async Task<EncryptedData> encryptKey(CipherKey key)
+        private async Task<EncryptedData> encryptKey(string client, CipherKey key)
         {
             var encryptedData = new EncryptedData()
             {
-                Client = MockClients.Me,
+                Client = client,
                 Cipher = string.Empty
             };
 
@@ -414,7 +529,6 @@ namespace Kms.Client.Dispatcher.Services
                 return encryptedData;
             }
             #endregion
-
 
             #region Encrypt the key
             string cipher = string.Empty;

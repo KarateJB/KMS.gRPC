@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Kms.Client.Dispatcher.Services;
+using Kms.Core.Mock;
 using Microsoft.Extensions.Logging;
 
 namespace Kms.gRPC.Client.Services.Startup
@@ -31,14 +32,16 @@ namespace Kms.gRPC.Client.Services.Startup
         /// <returns></returns>
         public async Task StartAsync()
         {
+            var me = MockClients.Me;
+
             // Symmetric key
-            await this.keyDispatcher.CreateSymmetricKeyAsync();
+            await this.keyDispatcher.CreateSymmetricKeyAsync(me);
 
             // Shared secret
-            await this.keyDispatcher.CreateSharedSecretsAsync();
+            await this.keyDispatcher.CreateSharedSecretsAsync(me);
 
             // Asymmetric key
-            await this.keyDispatcher.CreateAsymmetricKeyAsync();
+            await this.keyDispatcher.CreateAsymmetricKeyAsync(me);
 
             // Reporing working keys
             // await this.keyDispatcher.AuditWorkingKeysAsync(); // Client streaming

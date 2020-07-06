@@ -20,7 +20,7 @@ namespace Kms.gRPC.Services.gRPC
     /// </summary>
     public partial class KeyVaultService : KeyVaulter.KeyVaulterBase
     {
-        private const int DefaultReportNotifyTime = 600;
+        private const int DELAY_TIME_TEST = 1000; // Delay time(in seconds) for testing
         private readonly AppSettings appSettings = null;
         private readonly ILogger<KeyVaultService> logger = null;
         private readonly IKeyVault keyVault = null;
@@ -140,7 +140,7 @@ namespace Kms.gRPC.Services.gRPC
                         Cipher = encryptedKey
                     });
 
-                    await Task.Delay(2000); // Simulate delay 
+                    await Task.Delay(DELAY_TIME_TEST); // Simulate delay 
                 }
             }
 
@@ -157,17 +157,17 @@ namespace Kms.gRPC.Services.gRPC
         /// <param name="request">GetKeyRequest message</param>
         /// <param name="context">ServerCallContext</param>
         /// <returns>EncryptedData message</returns>
-        public override async Task<EncryptedData> GetSharedSectet(GetKeyRequest request, ServerCallContext context)
+        public override async Task<EncryptedData> GetSharedSectets(GetKeyRequest request, ServerCallContext context)
         {
             string client = request.Client;
-            // IList<string> owners = request.Owners;  // The client can only request for its own shared secret
+            // IList<string> owners = request.Owners;  // The client can only request for its own shared secret(s)
             KeyTypeEnum keyType = request.KeyType;
 
-            this.logger.LogDebug($"Start getting the {client}'s shared secret for {request.Client}...");
+            this.logger.LogDebug($"Start getting the {client}'s shared secrets for {client}...");
 
-            var encryptedKey = await this.getEncryptedKeyAsync(keyType, client, client);
+            var encryptedKey = await this.getEncryptedKeysAsync(keyType, client, client);
 
-            this.logger.LogDebug($"Complete getting the {client}'s shared secret for {request.Client}...");
+            this.logger.LogDebug($"Complete getting the {client}'s shared secrets for {client}...");
             return new EncryptedData { Client = request.Client, Cipher = encryptedKey };
         }
 
@@ -206,7 +206,7 @@ namespace Kms.gRPC.Services.gRPC
 
                 foreach (var owner in request.Owners)
                 {
-                    var encryptedKey = await this.getEncryptedKeyAsync(request.KeyType, requester, owner);
+                    var encryptedKey = await this.getEncryptedKeysAsync(request.KeyType, requester, owner);
 
                     // write the forecast to the channel which will be picked up concurrently by the channel reading background task
                     await channel.Writer.WriteAsync(new EncryptedData
@@ -214,7 +214,7 @@ namespace Kms.gRPC.Services.gRPC
                         Cipher = encryptedKey
                     });
 
-                    await Task.Delay(2000); // Simulate delay 
+                    await Task.Delay(DELAY_TIME_TEST); // Simulate delay 
                 }
             }
 
