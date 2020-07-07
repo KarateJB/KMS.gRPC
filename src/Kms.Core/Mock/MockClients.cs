@@ -2,6 +2,6 @@
 {
     public static class MockClients
     {
-        public static string Me = "My Desktop";
+        public static string Me = "My_Desktop";
     }
 }

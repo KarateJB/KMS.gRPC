@@ -13,13 +13,19 @@ package key_vault;
 // The greeting service definition.
 service KeyVaulter {
   // Unary RPC: Create symmetric key
-  rpc CreateSymmentricKey (KeyRequest) returns (CipherKey);
+  rpc CreateSymmentricKey (CreateKeyRequest) returns (CipherKey);
 
-  // Unary RPC: Create asymmetric key
-  rpc CreateAsymmetricKey (KeyRequest) returns (EncryptedData);
+  // Unary RPC: Create single asymmetric key
+  rpc CreateAsymmetricKey (CreateKeyRequest) returns (EncryptedData);
 
   // Server streaming RPC: Create shared secrets
-  rpc CreateSharedSectets (KeyRequest) returns (stream EncryptedData);
+  rpc CreateSharedSecrets (CreateKeyRequest) returns (stream EncryptedData);
+
+  // Unary RPC: Get shared secrets
+  rpc GetSharedSectets (GetKeyRequest) returns (EncryptedData);
+
+  // Server streaming RPC: Get others' public keys 
+  rpc GetPublicKeys (GetKeyRequest) returns (stream EncryptedData);
 
   // Client streaming RPC: Audit working keys
   rpc AuditWorkingKeys (stream EncryptedData) returns (KeyAuditReports);

@@ -15,14 +15,24 @@ using Microsoft.Extensions.Options;
 
 namespace Kms.gRPC.Services.gRPC
 {
+    /// <summary>
+    /// KeyVault service for implementing gRPC service: KeyVaulter
+    /// </summary>
     public partial class KeyVaultService : KeyVaulter.KeyVaulterBase
     {
-        private const int DefaultReportNotifyTime = 600;
+        private const int DELAY_TIME_TEST = 1000; // Delay time(in seconds) for testing
         private readonly AppSettings appSettings = null;
         private readonly ILogger<KeyVaultService> logger = null;
         private readonly IKeyVault keyVault = null;
         private readonly IKeyAuditReporter keyAuditReporter = null;
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="configuration"></param>
+        /// <param name="logger"></param>
+        /// <param name="keyVault"></param>
+        /// <param name="keyAuditReporter"></param>
         public KeyVaultService(
             IOptions<AppSettings> configuration,
             ILogger<KeyVaultService> logger,
@@ -35,8 +45,16 @@ namespace Kms.gRPC.Services.gRPC
             this.keyAuditReporter = keyAuditReporter;
         }
 
-        public override async Task<CipherKey> CreateSymmentricKey(KeyRequest request, ServerCallContext context)
+        /// <summary>
+        /// Unary RPC: Create symmetric key
+        /// </summary>
+        /// <param name="request">CreateKeyRequest message</param>
+        /// <param name="context">ServerCallContext</param>
+        /// <returns>Cipher key</returns>
+        public override async Task<CipherKey> CreateSymmentricKey(CreateKeyRequest request, ServerCallContext context)
         {
+            this.logger.LogDebug($"Start creating a symmetric key for {request.Client}...");
+
             var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
             var now = DateTimeOffset.Now;
             var keyMeta = new KeyMetadata()
@@ -49,11 +67,20 @@ namespace Kms.gRPC.Services.gRPC
 
             var key = await this.keyVault.CreateTripleDesAsync(keyMeta);
 
+            this.logger.LogDebug($"Complete creating a symmetric key for {request.Client}...");
             return key;
         }
 
-        public override async Task<EncryptedData> CreateAsymmetricKey(KeyRequest request, ServerCallContext context)
+        /// <summary>
+        /// Unary RPC: Create single asymmetric key
+        /// </summary>
+        /// <param name="request">CreateKeyRequest message</param>
+        /// <param name="context">ServerCallContext</param>
+        /// <returns>EncryptedData message</returns>
+        public override async Task<EncryptedData> CreateAsymmetricKey(CreateKeyRequest request, ServerCallContext context)
         {
+            this.logger.LogDebug($"Start creating an asymmetric key pair for {request.Client}...");
+
             var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
             var now = DateTimeOffset.Now;
             var keyMeta = new KeyMetadata()
@@ -64,17 +91,24 @@ namespace Kms.gRPC.Services.gRPC
                 Purpose = "Create Asymmetric Key"
             };
 
-            var encryptedKey = await this.getEncryptedAsymmetricKey(request.Client);
+            var encryptedKey = await this.getOrCreateEncryptedAsymmetricKey(request.Client);
 
+            this.logger.LogDebug($"Complete creating an asymmetric key pair for {request.Client}...");
             return new EncryptedData { Client = request.Client, Cipher = encryptedKey };
         }
 
-        public override async Task CreateSharedSectets(
-            KeyRequest request, IServerStreamWriter<EncryptedData> responseStream, ServerCallContext context)
+        /// <summary>
+        /// Server streaming RPC: Create shared secrets
+        /// </summary>
+        /// <param name="request">CreateKeyRequest message</param>
+        /// <param name="responseStream">Response stream with EncryptedData message</param>
+        /// <param name="context">ServerCallContext</param>
+        public override async Task CreateSharedSecrets(
+            CreateKeyRequest request, IServerStreamWriter<EncryptedData> responseStream, ServerCallContext context)
         {
             this.logger.LogDebug("Start streaming for creating multiple shared secrets...");
 
-            // we'll use a channel here to handle in-process 'messages' concurrently being written to and read from the channel.
+            // We'll use a channel here to handle in-process 'messages' concurrently being written to and read from the channel.
             var channel = Channel.CreateUnbounded<EncryptedData>();
 
             // Background task which uses async streams to write each data from the channel to the response stream.
@@ -90,7 +124,7 @@ namespace Kms.gRPC.Services.gRPC
 
             // a local function which defines a task to handle creating key
             // multiple instances of this will run concurrently for single request
-            async Task GetSharedSecretsAsync(string master)
+            async Task GetSharedSecretsAsync(string requester)
             {
                 // Request information
                 var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
@@ -98,7 +132,7 @@ namespace Kms.gRPC.Services.gRPC
 
                 foreach (var mockClient in MockDataFactory.Clients)
                 {
-                    var encryptedKey = await this.getEncryptedShareSecret(master, mockClient);
+                    var encryptedKey = await this.getOrCreateEncryptedShareSecret(requester, mockClient);
 
                     // write the forecast to the channel which will be picked up concurrently by the channel reading background task
                     await channel.Writer.WriteAsync(new EncryptedData
@@ -106,7 +140,7 @@ namespace Kms.gRPC.Services.gRPC
                         Cipher = encryptedKey
                     });
 
-                    await Task.Delay(2000); // Simulate delay 
+                    await Task.Delay(DELAY_TIME_TEST); // Simulate delay 
                 }
             }
 
@@ -117,6 +151,86 @@ namespace Kms.gRPC.Services.gRPC
             this.logger.LogDebug("Completed response streaming for creating multiple shared secrets.");
         }
 
+        /// <summary>
+        /// Unary RPC: Get single shared secret
+        /// </summary>
+        /// <param name="request">GetKeyRequest message</param>
+        /// <param name="context">ServerCallContext</param>
+        /// <returns>EncryptedData message</returns>
+        public override async Task<EncryptedData> GetSharedSectets(GetKeyRequest request, ServerCallContext context)
+        {
+            string client = request.Client;
+            // IList<string> owners = request.Owners;  // The client can only request for its own shared secret(s)
+            KeyTypeEnum keyType = request.KeyType;
+
+            this.logger.LogDebug($"Start getting the {client}'s shared secrets for {client}...");
+
+            var encryptedKey = await this.getEncryptedKeysAsync(keyType, client, client);
+
+            this.logger.LogDebug($"Complete getting the {client}'s shared secrets for {client}...");
+            return new EncryptedData { Client = request.Client, Cipher = encryptedKey };
+        }
+
+        /// <summary>
+        /// Server streaming RPC: Get others' public keys 
+        /// </summary>
+        /// <param name="request">GetKeyRequest message</param>
+        /// <param name="responseStream">Response stream with EncryptedData message</param>
+        /// <param name="context">ServerCallContext</param>
+        public override async Task GetPublicKeys(
+            GetKeyRequest request, IServerStreamWriter<EncryptedData> responseStream, ServerCallContext context)
+        {
+            this.logger.LogDebug($"Start streaming for getting the {request.Owners.ToAggregatedString()}'s public key(s) for {request.Client}...");
+
+            // We'll use a channel here to handle in-process 'messages' concurrently being written to and read from the channel.
+            var channel = Channel.CreateUnbounded<EncryptedData>();
+
+            // Background task which uses async streams to write each data from the channel to the response stream.
+            _ = Task.Run(async () =>
+            {
+                await foreach (var encryptedReply in channel.Reader.ReadAllAsync())
+                {
+                    await responseStream.WriteAsync(encryptedReply);
+                }
+            });
+
+            IList<Task> getKeyTasks = new List<Task>();
+
+            // a local function which defines a task to handle getting key
+            // multiple instances of this will run concurrently for single request
+            async Task GetPublicKeysAsync(string requester)
+            {
+                // Request information
+                var remoteIpAddress = context.GetHttpContext().Connection.RemoteIpAddress;
+                var now = DateTimeOffset.Now;
+
+                foreach (var owner in request.Owners)
+                {
+                    var encryptedKey = await this.getEncryptedKeysAsync(request.KeyType, requester, owner);
+
+                    // write the forecast to the channel which will be picked up concurrently by the channel reading background task
+                    await channel.Writer.WriteAsync(new EncryptedData
+                    {
+                        Cipher = encryptedKey
+                    });
+
+                    await Task.Delay(DELAY_TIME_TEST); // Simulate delay 
+                }
+            }
+
+            await GetPublicKeysAsync(request.Client);
+
+            channel.Writer.TryComplete();
+
+            this.logger.LogDebug($"Complete streaming for getting the {request.Owners.ToAggregatedString()}'s public key(s) for {request.Client}...");
+        }
+
+        /// <summary>
+        /// Client streaming RPC: Audit working keys
+        /// </summary>
+        /// <param name="requestStream">Request stream with EncryptedData message</param>
+        /// <param name="context">ServerCallContext</param>
+        /// <returns>KeyAuditReports message</returns>
         public override async Task<KeyAuditReports> AuditWorkingKeys(
             IAsyncStreamReader<EncryptedData> requestStream,
             ServerCallContext context)
@@ -151,6 +265,12 @@ namespace Kms.gRPC.Services.gRPC
             return new KeyAuditReports(auditReports);
         }
 
+        /// <summary>
+        /// Bidirectional streaming RPC: Audit working keys
+        /// </summary>
+        /// <param name="requestStream">Request stream with Encrypted message</param>
+        /// <param name="responseStream">Response stream with KeyAuditReport message</param>
+        /// <param name="context">ServerCallContext</param>
         public override async Task AuditWorkingKeysBid(
             IAsyncStreamReader<EncryptedData> requestStream,
             IServerStreamWriter<KeyAuditReport> responseStream,
@@ -206,6 +326,12 @@ namespace Kms.gRPC.Services.gRPC
             this.logger.LogDebug("Completed response streaming");
         }
 
+        /// <summary>
+        /// Bidirectional streaming RPC: Renew keys
+        /// </summary>
+        /// <param name="requestStream">Request stream with EncryptedData message</param>
+        /// <param name="responseStream">Response stream with EncryptedData message</param>
+        /// <param name="context">ServerCallContext</param>
         public override async Task RenewKeysBid(
             IAsyncStreamReader<EncryptedData> requestStream,
             IServerStreamWriter<EncryptedData> responseStream,

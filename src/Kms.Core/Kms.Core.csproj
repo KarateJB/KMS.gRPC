@@ -9,6 +9,7 @@
     <None Remove="Protos\encrypted_data.proto" />
     <None Remove="Protos\key_audit_report.proto" />
     <None Remove="Protos\key_request.proto" />
+    <None Remove="Protos\key_type_enum.proto" />
     <None Remove="Protos\key_vault.proto" />
   </ItemGroup>
 
@@ -23,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Protobuf Include="Protos\key_type_enum.proto" />
     <Protobuf Include="Protos\cipher_key.proto" />
     <Protobuf Include="Protos\key_audit_report.proto" />
     <Protobuf Include="Protos\encrypted_data.proto" />

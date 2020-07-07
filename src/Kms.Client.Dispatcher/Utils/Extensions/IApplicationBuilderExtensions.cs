@@ -2,6 +2,7 @@
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Kms.Client.Dispatcher.Services;
+using Kms.Core.Mock;
 using Microsoft.AspNetCore.Builder;
 
 namespace Kms.Client.Dispatcher.Utils.Extensions
@@ -39,8 +40,8 @@ namespace Kms.Client.Dispatcher.Utils.Extensions
             {
                 Task.Run(async () =>
                 {
-                    await keyDispatcher.AuditWorkingKeysAsync();
-                    // await keyDispatcher.AuditWorkingKeysBidAsync(); // Bidirection gRPC
+                    await keyDispatcher.AuditWorkingKeysAsync(MockClients.Me);
+                    // await keyDispatcher.AuditWorkingKeysBidAsync(MockClients.Me); // Bidirection gRPC
                 }).Wait();
             });
             #endregion
@@ -64,7 +65,7 @@ namespace Kms.Client.Dispatcher.Utils.Extensions
             {
                 Task.Run(async () =>
                 {
-                    await keyDispatcher.RenewKeysBidAsync();
+                    await keyDispatcher.RenewKeysBidAsync(MockClients.Me);
                 }).Wait();
             });
             #endregion

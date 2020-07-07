@@ -2,9 +2,25 @@ syntax = "proto3";
 
 option csharp_namespace = "Kms.Core";
 
-// The request message
-message KeyRequest {
+import "Protos/key_type_enum.proto";
+
+
+// The Create Key Request message
+message CreateKeyRequest {
   
   // Client name
   string Client = 1;
+}
+
+// The Get Key Request message
+message GetKeyRequest {
+  
+  // Client name
+  string Client = 1;
+
+  // Key type
+  KeyTypeEnum KeyType = 2;
+
+  // Ask for whose key
+  repeated string Owners = 3;
 }

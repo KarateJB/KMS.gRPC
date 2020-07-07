@@ -15,7 +15,7 @@ namespace Kms.Client.Dispatcher.Services
         private const int DefaultReportNotifyTime = 600;
         private readonly AppSettings appSettings = null;
         private readonly ILogger logger = null;
-        private readonly Timer timer = null;
+        // private readonly Timer timer = null;
         private IDisposable subscription = null;
 
         /// <summary>

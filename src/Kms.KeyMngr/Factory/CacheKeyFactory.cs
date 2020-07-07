@@ -1,5 +1,5 @@
 ﻿using System;
-using static Kms.Core.CipherKey.Types;
+using Kms.Core;
 
 namespace Kms.KeyMngr.Factory
 {
