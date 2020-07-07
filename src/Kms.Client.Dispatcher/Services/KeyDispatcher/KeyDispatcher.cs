@@ -83,7 +83,7 @@ namespace Kms.Client.Dispatcher.Services
 
             this.logger.CustomLogDebug("Start creating shared secrets from KMS...");
 
-            using var stream = this.keyVaulterClient.CreateSharedSectets(new CreateKeyRequest { Client = client });
+            using var stream = this.keyVaulterClient.CreateSharedSecrets(new CreateKeyRequest { Client = client });
 
             var responseProcessing = Task.Run(async () =>
             {

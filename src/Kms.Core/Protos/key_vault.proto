@@ -19,7 +19,7 @@ service KeyVaulter {
   rpc CreateAsymmetricKey (CreateKeyRequest) returns (EncryptedData);
 
   // Server streaming RPC: Create shared secrets
-  rpc CreateSharedSectets (CreateKeyRequest) returns (stream EncryptedData);
+  rpc CreateSharedSecrets (CreateKeyRequest) returns (stream EncryptedData);
 
   // Unary RPC: Get shared secrets
   rpc GetSharedSectets (GetKeyRequest) returns (EncryptedData);

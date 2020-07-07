@@ -103,7 +103,7 @@ namespace Kms.gRPC.Services.gRPC
         /// <param name="request">CreateKeyRequest message</param>
         /// <param name="responseStream">Response stream with EncryptedData message</param>
         /// <param name="context">ServerCallContext</param>
-        public override async Task CreateSharedSectets(
+        public override async Task CreateSharedSecrets(
             CreateKeyRequest request, IServerStreamWriter<EncryptedData> responseStream, ServerCallContext context)
         {
             this.logger.LogDebug("Start streaming for creating multiple shared secrets...");
